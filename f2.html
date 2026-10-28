@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        // 함수 f를 "만드는(정의)" 부분. 만들기만 하고 아직 실행되지는 않는다.
+        // ({a,b,z})는 객체를 받아서 그 안의 a, b, z 값을 바로 꺼내 쓰는 문법(구조 분해)이다.
+        // 예) {"a":10,"b":1000,"z":56}를 넣으면 a=10, b=1000, z=56이 된다.
+        const f= ({a,b,z}) => {   //함수(기능), 기능함수 정의(만들다){"a":10}
+
+        //console.log(i)   // (주석 처리됨) 앞의 // 때문에 실행되지 않는 코드
+        return a*10*b+z    // 계산 결과를 돌려준다(return). 10*10*1000+56 = 100056
+    }
+    //사용하는 쪽에서 호출(call)=>실행
+
+    // 함수에 넣어 줄 데이터. 키(a, b, z)와 값(10, 1000, 56)으로 이루어진 객체이다.
+    let u={"a":10,"b":1000,"z":56}
+    // f(u): 위에서 만든 함수에 u를 넣어 실행하고, 돌려받은 값(100056)을 변수 a에 담는다.
+    // 함수 안의 a와는 별개의 변수다(함수 안의 a는 함수 안에서만 쓰인다).
+    let a= f(u)
+    // 브라우저 개발자 도구의 Console에 결과를 출력한다. → 100056
+    console.log(a)
+    
+
+    </script>
+</body>
+</html>
