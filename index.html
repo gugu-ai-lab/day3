@@ -3,151 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>전 세계 실시간 지진</title>
+    <title>제주 여행 추천 에이전트</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
     <style>
-        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; background: #111; color: #eee; }
-        header { display: flex; gap: 14px; align-items: center; padding: 10px 14px; flex-wrap: wrap; background: #1c1c1e; border-bottom: 1px solid #333; }
-        header h1 { font-size: 17px; margin: 0; }
-        select, button, input { font: inherit; }
-        button, select { background: #2c2c2e; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
-        #stats { margin-left: auto; font-size: 13px; color: #aaa; }
-        main { flex: 1; display: flex; min-height: 0; }
-        #map { flex: 1; background: #222; }
-        #list { width: 280px; margin: 0; padding: 0; overflow-y: auto; list-style: none; background: #1c1c1e; border-left: 1px solid #333; }
-        #list li { padding: 8px 12px; border-bottom: 1px solid #2a2a2c; font-size: 13px; cursor: pointer; }
-        #list li:hover { background: #2a2a2c; }
-        #list b { display: inline-block; min-width: 34px; }
-        #list small { color: #999; display: block; }
-        .quake { border-radius: 50%; opacity: .75; border: 1px solid rgba(255,255,255,.7); box-sizing: border-box; }
-        .quake.fresh { animation: pulse 1.6s ease-out infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255,80,60,.8); } 100% { box-shadow: 0 0 0 22px rgba(255,80,60,0); } }
-        @media (max-width: 700px) { main { flex-direction: column; } #list { width: auto; height: 35%; border-left: 0; border-top: 1px solid #333; } #stats { margin-left: 0; } }
+        body { margin: 0; font-family: sans-serif; display: flex; height: 100vh; }
+        aside { width: 380px; display: flex; flex-direction: column; border-right: 1px solid #ccc; }
+        h1 { font-size: 17px; margin: 0; padding: 12px; border-bottom: 1px solid #ddd; }
+        #log { flex: 1; overflow-y: auto; padding: 10px; }
+        .msg { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
+        .user { background: #e8f0fe; margin-left: 40px; }
+        .bot { background: #f3f3f3; margin-right: 20px; }
+        .steps { font-size: 12px; color: #555; margin: 0 0 6px; }
+        .steps span { display: inline-block; background: #fff3cd; border-radius: 10px; padding: 1px 8px; margin: 0 4px 4px 0; }
+        .steps span.fail { background: #f8d7da; }
+        #chips { padding: 0 10px 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+        #chips button { font-size: 12px; border: 1px solid #ccc; background: #fff; border-radius: 12px; padding: 3px 10px; cursor: pointer; }
+        form { display: flex; gap: 6px; padding: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; font: inherit; padding: 6px 8px; }
+        button.send { font: inherit; padding: 6px 12px; }
+        #map { flex: 1; }
+        #mapNote { position: absolute; z-index: 1000; right: 10px; top: 10px; background: #fffd; padding: 4px 10px; border-radius: 6px; font-size: 13px; }
+        @media (max-width: 800px) { body { flex-direction: column-reverse; } aside { width: auto; height: 60%; border-right: 0; border-top: 1px solid #ccc; } }
     </style>
 </head>
 <body>
-    <header>
-        <h1>🌍 전 세계 실시간 지진</h1>
-        <label>기간
-            <select id="period">
-                <option value="all_hour">최근 1시간</option>
-                <option value="all_day" selected>최근 24시간</option>
-                <option value="2.5_week">최근 7일 (규모 2.5↑)</option>
-            </select>
-        </label>
-        <label>최소 규모
-            <select id="minMag">
-                <option value="0">전체</option><option value="2">2 이상</option>
-                <option value="4">4 이상</option><option value="5">5 이상</option><option value="6">6 이상</option>
-            </select>
-        </label>
-        <button id="replay">▶ 재생</button>
-        <span id="stats">불러오는 중…</span>
-    </header>
-    <main>
-        <div id="map"></div>
-        <ul id="list"></ul>
-    </main>
+    <aside>
+        <h1>🏝️ 제주 여행 추천 에이전트</h1>
+        <div id="log"></div>
+        <div id="chips"></div>
+        <form id="form">
+            <input id="input" placeholder="예: 내일 서쪽에서 갈 만한 곳 추천해줘" maxlength="500" autocomplete="off">
+            <button class="send">보내기</button>
+        </form>
+    </aside>
+    <div id="map"></div>
+    <div id="mapNote" hidden></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
-        const map = L.map("map", { worldCopyJump: true, minZoom: 2 }).setView([20, 10], 2)
+        const map = L.map("map").setView([33.38, 126.55], 10)
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 18,
-            attribution: "&copy; OpenStreetMap contributors · 지진 데이터: USGS"
+            attribution: "&copy; OpenStreetMap contributors · 날씨: Open-Meteo"
         }).addTo(map)
         const layer = L.layerGroup().addTo(map)
 
-        const periodEl = document.getElementById("period")
-        const minMagEl = document.getElementById("minMag")
-        const statsEl = document.getElementById("stats")
-        const listEl = document.getElementById("list")
-        const replayBtn = document.getElementById("replay")
+        const logEl = document.getElementById("log")
+        const form = document.getElementById("form")
+        const input = document.getElementById("input")
+        const noteEl = document.getElementById("mapNote")
+        const chatHistory = []   // 서버로 보내는 이전 대화(텍스트만)
+        let mapRun = 0
 
-        let quakes = []      // 화면에 표시 중인 지진 {f, marker}
-        let timer = null     // 재생 타이머
-
-        const color = (m) => m >= 6 ? "#ff2d2d" : m >= 5 ? "#ff7a1a" : m >= 4 ? "#ffc61a" : m >= 2.5 ? "#6fd36f" : "#4aa3ff"
-        const size = (m) => Math.max(8, Math.round(Math.pow(1.7, Math.max(m, 0)) * 4))
-
-        const makeMarker = (f) => {
-            const [lon, lat] = f.geometry.coordinates
-            const mag = f.properties.mag ?? 0
-            const px = size(mag)
-            const fresh = Date.now() - f.properties.time < 3600 * 1000
-            const icon = L.divIcon({
-                className: "",
-                iconSize: [px, px],
-                html: `<div class="quake${fresh ? " fresh" : ""}" style="width:${px}px;height:${px}px;background:${color(mag)}"></div>`
-            })
-            const popup = document.createElement("div")
-            const title = document.createElement("b")
-            title.textContent = `규모 ${mag.toFixed(1)}`
-            const place = document.createElement("div")
-            place.textContent = f.properties.place || "위치 정보 없음"
-            const when = document.createElement("div")
-            when.textContent = new Date(f.properties.time).toLocaleString("ko-KR") + ` · 깊이 ${f.geometry.coordinates[2]} km`
-            popup.append(title, place, when)
-            return L.marker([lat, lon], { icon }).bindPopup(popup)
+        const add = (cls, text) => {
+            const div = document.createElement("div")
+            div.className = "msg " + cls
+            div.textContent = text
+            logEl.appendChild(div)
+            logEl.scrollTop = logEl.scrollHeight
+            return div
         }
 
-        const render = (features) => {
-            stopReplay()
-            layer.clearLayers()
-            listEl.replaceChildren()
-            quakes = features.map((f) => ({ f, marker: makeMarker(f).addTo(layer) }))
-
-            const strongest = [...features].sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0))
-            statsEl.textContent = `${features.length}건` + (strongest.length ? ` · 최대 규모 ${(strongest[0].properties.mag ?? 0).toFixed(1)}` : "")
-
-            for (const q of quakes.slice().sort((a, b) => b.f.properties.time - a.f.properties.time).slice(0, 100)) {
-                const li = document.createElement("li")
-                const mag = document.createElement("b")
-                mag.textContent = (q.f.properties.mag ?? 0).toFixed(1)
-                mag.style.color = color(q.f.properties.mag ?? 0)
-                const small = document.createElement("small")
-                small.textContent = new Date(q.f.properties.time).toLocaleString("ko-KR")
-                li.append(mag, q.f.properties.place || "위치 정보 없음", small)
-                li.onclick = () => { map.setView(q.marker.getLatLng(), 6); q.marker.openPopup() }
-                listEl.appendChild(li)
+        const stepsEl = (steps) => {
+            const box = document.createElement("div")
+            box.className = "steps"
+            const label = ["에이전트가 부른 도구: "]
+            box.append(...label)
+            for (const s of steps) {
+                const tag = document.createElement("span")
+                if (!s.ok) tag.className = "fail"
+                const args = Object.entries(s.input || {}).map(([k, v]) => `${k}=${v}`).join(", ")
+                tag.textContent = `${s.name}(${args})`
+                box.appendChild(tag)
             }
+            return box
         }
 
-        const load = async () => {
-            statsEl.textContent = "불러오는 중…"
+        // 좌표가 없는 목록이라 이름으로 위치를 찾고(Nominatim, 제주 범위 안), 결과는 브라우저에 저장해 둔다.
+        const geocode = async (name) => {
+            const key = "jeju-geo:" + name
             try {
-                const res = await fetch(`https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/${periodEl.value}.geojson`)
+                const saved = localStorage.getItem(key)
+                if (saved !== null) return { pos: JSON.parse(saved), cached: true }
+            } catch (e) {}
+            const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=kr" +
+                "&viewbox=126.1,33.6,127.0,33.1&bounded=1&q=" + encodeURIComponent("제주 " + name)
+            const res = await (await fetch(url)).json()
+            const pos = res.length ? [Number(res[0].lat), Number(res[0].lon)] : null
+            try { localStorage.setItem(key, JSON.stringify(pos)) } catch (e) {}
+            return { pos, cached: false }
+        }
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+        // 에이전트가 답에서 언급한 장소만 지도에 찍는다.
+        const showOnMap = async (spots, reply) => {
+            const id = ++mapRun
+            layer.clearLayers()
+            const picked = spots.filter((s) => reply.includes(s.name))
+            if (!picked.length) { noteEl.hidden = true; return }
+            const bounds = []
+            noteEl.hidden = false
+            for (const spot of picked) {
+                noteEl.textContent = `지도에 표시 중… (${bounds.length}/${picked.length})`
+                let result = { pos: null }
+                try { result = await geocode(spot.name) } catch (e) {}
+                if (id !== mapRun) return
+                if (result.pos) {
+                    const popup = document.createElement("div")
+                    popup.textContent = `${spot.name} (${spot.indoor ? "실내" : "야외"} · ${spot.description})`
+                    L.marker(result.pos).addTo(layer).bindPopup(popup)
+                    bounds.push(result.pos)
+                    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 })
+                }
+                if (!result.cached) await sleep(1100)   // Nominatim 은 초당 1회까지만 허용
+            }
+            noteEl.textContent = `추천 장소 ${bounds.length}곳 표시` +
+                (bounds.length < picked.length ? ` (${picked.length - bounds.length}곳은 위치를 찾지 못함)` : "")
+        }
+
+        const ask = async (message) => {
+            add("user", message)
+            const wait = add("bot", "도구를 골라 알아보는 중…")
+            input.disabled = true
+            try {
+                const res = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ message, history: chatHistory })
+                })
                 const data = await res.json()
-                const min = Number(minMagEl.value)
-                render(data.features.filter((f) => (f.properties.mag ?? 0) >= min))
+                wait.remove()
+                if (data.steps && data.steps.length) logEl.appendChild(stepsEl(data.steps))
+                if (!res.ok) { add("bot", "오류: " + (data.error || res.status)); return }
+                add("bot", data.reply)
+                chatHistory.push({ role: "user", content: message }, { role: "assistant", content: data.reply })
+                showOnMap(data.spots || [], data.reply)
             } catch (e) {
-                statsEl.textContent = "지진 데이터를 불러오지 못했습니다."
+                wait.remove()
+                add("bot", "서버에 연결하지 못했습니다.")
+            } finally {
+                input.disabled = false
+                input.focus()
             }
         }
 
-        // 재생: 오래된 지진부터 하나씩 나타낸다
-        function stopReplay() {
-            clearInterval(timer)
-            timer = null
-            replayBtn.textContent = "▶ 재생"
-        }
-        replayBtn.onclick = () => {
-            if (timer) { stopReplay(); quakes.forEach((q) => q.marker.addTo(layer)); return }
-            const order = quakes.slice().sort((a, b) => a.f.properties.time - b.f.properties.time)
-            layer.clearLayers()
-            let i = 0
-            replayBtn.textContent = "■ 정지"
-            timer = setInterval(() => {
-                if (i >= order.length) { stopReplay(); return }
-                order[i].marker.addTo(layer)
-                statsEl.textContent = `${i + 1}/${order.length} · ${new Date(order[i].f.properties.time).toLocaleString("ko-KR")}`
-                i++
-            }, Math.max(15, Math.min(120, 6000 / order.length)))
-        }
+        form.addEventListener("submit", (e) => {
+            e.preventDefault()
+            const message = input.value.trim()
+            if (!message) return
+            input.value = ""
+            ask(message)
+        })
 
-        periodEl.onchange = minMagEl.onchange = load
-        load()
-        setInterval(() => { if (!timer) load() }, 60000)   // 1분마다 새로 고침
+        for (const q of ["오늘 제주시에서 뭐 하면 좋을까?", "내일 서쪽에서 갈 만한 곳 추천해줘", "비 오면 서귀포에서 어디 가지?"]) {
+            const b = document.createElement("button")
+            b.textContent = q
+            b.onclick = () => ask(q)
+            document.getElementById("chips").appendChild(b)
+        }
+        add("bot", "날씨와 관광지 목록을 직접 찾아보고 추천해 드려요. 어디서 무엇을 하고 싶은지 편하게 말해 주세요.")
     </script>
 </body>
 </html>
